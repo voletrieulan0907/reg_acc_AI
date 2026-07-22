@@ -1,0 +1,64 @@
+name: Build Clone AI Executable
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout Source Code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: 'pip'
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Build Executable with PyInstaller
+      run: |
+        python -c "from PIL import Image; Image.open('image/ai.png').save('image/ai.ico', format='ICO')"
+        pyinstaller --noconsole --onefile --icon="image/ai.ico" --add-data="image/ai.png;image" --name "CloneAI" app.py
+
+    - name: Organize Professional Release Directory
+      shell: powershell
+      run: |
+        New-Item -ItemType Directory -Force -Path "Release_Package/CloneAI_v1.3.0_Windows_x64/config"
+        New-Item -ItemType Directory -Force -Path "Release_Package/CloneAI_v1.3.0_Windows_x64/logs"
+        New-Item -ItemType Directory -Force -Path "Release_Package/CloneAI_v1.3.0_Windows_x64/image"
+        
+        Copy-Item -Path "dist/CloneAI.exe" -Destination "Release_Package/CloneAI_v1.3.0_Windows_x64/"
+        Copy-Item -Path "image/ai.png" -Destination "Release_Package/CloneAI_v1.3.0_Windows_x64/image/"
+        
+        @'
+        ====================================================
+        Clone AI - Meitu RoboNeo Mass Registration Tool v1.3.0
+        ====================================================
+        HƯỚNG DẪN SỬ DỤNG:
+        1. Chạy file CloneAI.exe
+        2. Nhập API Key 2Captcha vào cấu hình
+        3. Chọn số luồng (threads) và số lượng tài khoản cần đăng ký
+        4. Bấm "Bắt đầu" để khởi chạy luồng đăng ký tự động
+        
+        LƯU Ý: Không xóa folder config/ và logs/ để công cụ hoạt động ổn định.
+        '@ | Out-File -FilePath "Release_Package/CloneAI_v1.3.0_Windows_x64/HDSD.txt" -Encoding utf8
+
+        Compress-Archive -Path "Release_Package/CloneAI_v1.3.0_Windows_x64" -DestinationPath "CloneAI_v1.3.0_Windows_x64.zip" -Force
+
+    - name: Upload Artifact to GitHub Actions
+      uses: actions/upload-artifact@v4
+      with:
+        name: CloneAI_v1.3.0_Windows_x64
+        path: CloneAI_v1.3.0_Windows_x64.zip
+        retention-days: 30
